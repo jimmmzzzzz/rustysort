@@ -13,6 +13,33 @@ fn category(extension: &str) -> &str {
     }
 }
 
+fn unique_destination(destination: PathBuf) -> PathBuf {
+    if !destination.exists() {
+        return destination;
+    }
+
+    let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+    let stem = destination
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("file");
+    let extension = destination.extension().and_then(|value| value.to_str());
+
+    for counter in 1.. {
+        let file_name = match extension {
+            Some(ext) if !ext.is_empty() => format!("{stem}_{counter}.{ext}"),
+            _ => format!("{stem}_{counter}"),
+        };
+        let candidate = parent.join(file_name);
+
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+
+    unreachable!()
+}
+
 fn organize_folder(folder: &Path) -> std::io::Result<()> {
     for entry in fs::read_dir(folder)? {
         let entry = entry?;
@@ -37,7 +64,7 @@ fn organize_folder(folder: &Path) -> std::io::Result<()> {
             None => continue,
         };
 
-        let destination = destination_folder.join(file_name);
+        let destination = unique_destination(destination_folder.join(file_name));
 
         fs::rename(&path, &destination)?;
 
