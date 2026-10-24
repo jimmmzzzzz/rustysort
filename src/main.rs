@@ -40,12 +40,19 @@ fn unique_destination(destination: PathBuf) -> PathBuf {
     unreachable!()
 }
 
+fn is_hidden_file(path: &Path) -> bool {
+    path.file_name()
+        .map(|name| name.to_string_lossy().starts_with('.'))
+        .unwrap_or(false)
+}
+
 fn organize_folder(folder: &Path) -> std::io::Result<()> {
     for entry in fs::read_dir(folder)? {
         let entry = entry?;
         let path = entry.path();
 
-        if !path.is_file() {
+        // Hidden dotfiles often hold configuration or secrets; leave them in place.
+        if is_hidden_file(&path) || !path.is_file() {
             continue;
         }
 
@@ -96,5 +103,20 @@ fn main() {
     match organize_folder(folder) {
         Ok(_) => println!("Folder organized successfully."),
         Err(error) => println!("Error: {}", error),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_hidden_file;
+    use std::path::Path;
+
+    #[test]
+    fn preserves_hidden_configuration_files() {
+        assert!(is_hidden_file(Path::new(".env")));
+        assert!(is_hidden_file(Path::new("Downloads/.gitignore")));
+        assert!(is_hidden_file(Path::new("Downloads/.config.json")));
+        assert!(!is_hidden_file(Path::new("Downloads/report.pdf")));
+        assert!(!is_hidden_file(Path::new("Downloads/photo.png")));
     }
 }
