@@ -85,30 +85,34 @@ fn organize_folder(folder: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-
+fn run(args: &[String]) -> Result<(), String> {
     if args.len() < 2 {
-        println!("Usage: rustysort <folder>");
-        return;
+        return Err("Usage: rustysort <folder>".to_string());
     }
 
     let folder = Path::new(&args[1]);
 
     if !folder.exists() {
-        println!("Folder does not exist.");
-        return;
+        return Err("Folder does not exist.".to_string());
     }
 
-    match organize_folder(folder) {
-        Ok(_) => println!("Folder organized successfully."),
-        Err(error) => println!("Error: {}", error),
+    organize_folder(folder).map_err(|error| format!("Error: {}", error))?;
+    println!("Folder organized successfully.");
+    Ok(())
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    if let Err(error) = run(&args) {
+        eprintln!("{}", error);
+        std::process::exit(1);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::is_hidden_file;
+    use super::{is_hidden_file, run};
     use std::path::Path;
 
     #[test]
@@ -118,5 +122,15 @@ mod tests {
         assert!(is_hidden_file(Path::new("Downloads/.config.json")));
         assert!(!is_hidden_file(Path::new("Downloads/report.pdf")));
         assert!(!is_hidden_file(Path::new("Downloads/photo.png")));
+    }
+
+    #[test]
+    fn missing_folder_argument_returns_an_error() {
+        assert!(run(&["rustysort".to_string()]).is_err());
+    }
+
+    #[test]
+    fn empty_folder_argument_returns_an_error() {
+        assert!(run(&["rustysort".to_string(), String::new()]).is_err());
     }
 }
